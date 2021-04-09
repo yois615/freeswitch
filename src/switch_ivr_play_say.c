@@ -1834,11 +1834,11 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 					sp_prev_idx += olen;
 
 					if (cont) {
+						switch_safe_free(data);
 						continue;
 					}
 				} else {
 					sp_prev_idx = 0;
-					extra = 0;
 					currp = bp;
 				}
 
@@ -1985,6 +1985,10 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 			if (done) {
 				break;
 			}
+		}
+		if (sp_prev) { 
+			switch_safe_free(sp_prev);
+			sp_prev = NULL;
 		}
 
 		switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "done playing file %s\n", file);
