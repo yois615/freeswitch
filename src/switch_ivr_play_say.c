@@ -1355,8 +1355,7 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 		short sp_ovrlap[32];
 		short sp_has_overlap = 0;
 		int sp_prev_idx = 0;
-		int sp_prev_cap = 0;
-		short* sp_prev = NULL;
+		short sp_prev[SWITCH_RECOMMENDED_BUFFER_SIZE];
 
 		file = argv[cur];
 		eof = 0;
@@ -1866,10 +1865,6 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 				short* data = NULL;
 				short* currp = NULL;
 				switch_zmalloc(data, datalen * 2);
-				if (sp_prev == NULL) {
-					sp_prev_cap = olen * 16;
-					switch_zmalloc(sp_prev, sp_prev_cap * 2);
-				}
 				if (!fh->sp_audio_buffer) {
 					switch_buffer_create_dynamic(&fh->sp_audio_buffer, 1024, 1024, 0);
 				}
@@ -1882,24 +1877,26 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 						// not enough data
 						switch_buffer_write(fh->sp_audio_buffer, bp, newlen * 2);
 						cont = 1;
+					} else if (SWITCH_RECOMMENDED_BUFFER_SIZE < extra + sp_prev_idx) {
+						// data does not fit
+						switch_buffer_write(fh->sp_audio_buffer, bp, newlen * 2);
+						cont = 1;
 					} else {
 						memcpy(currp, sp_prev + sp_prev_idx - extra, extra * 2);
 						memcpy(currp + extra, bp, olen * 2);
-					}
-
-					if (sp_prev_cap < 2 * olen) {
-						switch_safe_free(sp_prev);
-						sp_prev_cap = olen * 16;
-						switch_zmalloc(sp_prev, sp_prev_cap * 2);
-						sp_prev_idx = 0;
 					}
 
 					if (sp_prev_idx > olen) {
 						memmove(sp_prev, sp_prev + sp_prev_idx - olen, olen * 2);
 						sp_prev_idx = olen;
 					}
-					memcpy(sp_prev + sp_prev_idx, bp, olen * 2);
-					sp_prev_idx += olen;
+					if (sp_prev_idx + olen <= SWITCH_RECOMMENDED_BUFFER_SIZE) {
+						memcpy(sp_prev + sp_prev_idx, bp, olen * 2);
+						sp_prev_idx += olen;
+					} else {
+						cont = 1;
+					}
+		
 
 					if (cont) {
 						switch_safe_free(data);
@@ -2053,10 +2050,6 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 			if (done) {
 				break;
 			}
-		}
-		if (sp_prev) { 
-			switch_safe_free(sp_prev);
-			sp_prev = NULL;
 		}
 
 		switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "done playing file %s\n", file);
