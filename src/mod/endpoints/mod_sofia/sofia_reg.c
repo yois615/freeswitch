@@ -880,7 +880,6 @@ long sofia_reg_uniform_distribution(int max)
 	int result;
 	int range = max + 1;
 
-	srand((unsigned)((intptr_t) switch_thread_self() + switch_micro_time_now()));
 	result = (int)((double)rand() / (((double)RAND_MAX + (double)1) / range));
 
 	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG9, "Generated random %ld, max is %d\n", (long) result, max);
@@ -1778,7 +1777,6 @@ uint8_t sofia_reg_handle_register_token(nua_t *nua, sofia_profile_t *profile, nu
 			     (( exp_max_deviation_var = profile->sip_expires_max_deviation )) ) {
 				if (exp_max_deviation_var > 0) {
 					int exp_deviation;
-					srand( (unsigned) ( (unsigned)(intptr_t)switch_thread_self() + switch_micro_time_now() ) );
 					/* random number between negative exp_max_deviation_var and positive exp_max_deviation_var: */
 					exp_deviation = ( rand() % ( exp_max_deviation_var * 2 ) ) - exp_max_deviation_var;
 					exptime += exp_deviation;
