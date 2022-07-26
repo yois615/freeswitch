@@ -549,7 +549,7 @@ static void http_sendfile_success_report(http_sendfile_data_t *http_data, switch
 			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "Unable to create a event to report on success of curl_sendfile.\n");
 	}
 
-	if((switch_test_flag(http_data, CSO_STREAM) || switch_test_flag(http_data, CSO_NONE) || switch_test_flag(http_data, CSO_EVENT)) && http_data->stream)
+	if((switch_test_flag(http_data, CSO_NONE) || switch_test_flag(http_data, CSO_EVENT)) && http_data->stream)
 	{
 		if(http_data->http_response_code == 200)
 			http_data->stream->write_function(http_data->stream, "+200 Ok\n");
@@ -559,6 +559,9 @@ static void http_sendfile_success_report(http_sendfile_data_t *http_data, switch
 		if(http_data->sendfile_response_count && switch_test_flag(http_data, CSO_STREAM))
 			http_data->stream->write_function(http_data->stream, "%s\n", http_data->sendfile_response);
 	}
+
+	else if(switch_test_flag(http_data, CSO_STREAM) && http_data->stream && http_data->sendfile_response_count)
+			http_data->stream->write_function(http_data->stream, "%s\n", http_data->sendfile_response);
 
 	if(switch_test_flag(http_data, CSO_NONE) && !http_data->stream)
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "Sending of file %s to url %s resulted with code %lu\n", http_data->filename_element, http_data->url, http_data->http_response_code);
