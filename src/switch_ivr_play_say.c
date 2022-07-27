@@ -1355,7 +1355,7 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 		short sp_ovrlap[32];
 		short sp_has_overlap = 0;
 		int sp_prev_idx = 0;
-		short sp_prev[SWITCH_RECOMMENDED_BUFFER_SIZE];
+		short sp_prev[SWITCH_RECOMMENDED_BUFFER_SIZE] = {0};
 
 		file = argv[cur];
 		eof = 0;
@@ -1862,9 +1862,8 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 				int src_rng = (fh->speed > 0 ? supplement : sp_cut_src_rng)* sp_has_overlap;
 				int datalen = newlen + src_rng + sp_fadeLen;
 				int extra = datalen - olen;
-				short* data = NULL;
+				short data[SWITCH_RECOMMENDED_BUFFER_SIZE] = {0};
 				short* currp = NULL;
-				switch_zmalloc(data, datalen * 2);
 				if (!fh->sp_audio_buffer) {
 					switch_buffer_create_dynamic(&fh->sp_audio_buffer, 1024, 1024, 0);
 				}
@@ -1896,10 +1895,8 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 					} else {
 						cont = 1;
 					}
-		
 
 					if (cont) {
-						switch_safe_free(data);
 						continue;
 					}
 				} else {
@@ -1939,7 +1936,6 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 				}
 
 				last_speed = fh->speed;
-				switch_safe_free(data);
 				continue;
 			}
 
