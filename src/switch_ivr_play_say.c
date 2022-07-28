@@ -1847,10 +1847,10 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 			}
 
 			if (!switch_test_flag(fh, SWITCH_FILE_NATIVE)) {
-				if (fh->speed > 2) {
-					fh->speed = 2;
-				} else if (fh->speed < -2) {
-					fh->speed = -2;
+				if (fh->speed > 3) {
+					fh->speed = 3;
+				} else if (fh->speed < -3) {
+					fh->speed = -3;
 				}
 			}
 
