@@ -1836,10 +1836,10 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 			}
 
 			if (!switch_test_flag(fh, SWITCH_FILE_NATIVE)) {
-				if (fh->speed > 2) {
-					fh->speed = 2;
-				} else if (fh->speed < -2) {
-					fh->speed = -2;
+				if (fh->speed > 3) {
+					fh->speed = 3;
+				} else if (fh->speed < -3) {
+					fh->speed = -3;
 				}
 			}
 
@@ -1855,7 +1855,7 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 
 
 			if (!switch_test_flag(fh, SWITCH_FILE_NATIVE) && fh->speed && do_speed) {
-				float factor = 0.25f * abs(fh->speed);
+				float factor = 0.17f * abs(fh->speed);
 				short* bp = write_frame.data;
 				switch_size_t supplement = (int) (factor * olen);
 				switch_size_t newlen = (fh->speed > 0) ? olen - supplement : olen + supplement;
