@@ -1355,7 +1355,8 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 		short sp_ovrlap[32];
 		short sp_has_overlap = 0;
 		int sp_prev_idx = 0;
-		short sp_prev[SWITCH_RECOMMENDED_BUFFER_SIZE] = {0};
+		int sp_prev_cap = 0;
+		short *sp_prev = NULL;
 
 		file = argv[cur];
 		eof = 0;
@@ -1862,8 +1863,16 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 				int src_rng = (fh->speed > 0 ? supplement : sp_cut_src_rng)* sp_has_overlap;
 				int datalen = newlen + src_rng + sp_fadeLen;
 				int extra = datalen - olen;
-				short data[SWITCH_RECOMMENDED_BUFFER_SIZE] = {0};
+				short data[datalen * 2];
 				short* currp = NULL;
+
+				memset(data, 0, sizeof(data));
+
+				if (!sp_prev) {
+					sp_prev_cap = olen * 3 + sp_prev_idx;
+					switch_zmalloc(sp_prev, sp_prev_cap);
+				}
+
 				if (!fh->sp_audio_buffer) {
 					switch_buffer_create_dynamic(&fh->sp_audio_buffer, 1024, 1024, 0);
 				}
@@ -1876,25 +1885,23 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 						// not enough data
 						switch_buffer_write(fh->sp_audio_buffer, bp, newlen * 2);
 						cont = 1;
-					} else if (SWITCH_RECOMMENDED_BUFFER_SIZE < extra + sp_prev_idx) {
-						// data does not fit
-						switch_buffer_write(fh->sp_audio_buffer, bp, newlen * 2);
-						cont = 1;
 					} else {
 						memcpy(currp, sp_prev + sp_prev_idx - extra, extra * 2);
 						memcpy(currp + extra, bp, olen * 2);
+					}
+
+					if (olen * 3 + sp_prev_idx > sp_prev_cap) {
+						sp_prev_cap = olen * 3 + sp_prev_idx;
+						sp_prev = realloc(sp_prev, sp_prev_cap);
+						sp_prev_idx = 0;
 					}
 
 					if (sp_prev_idx > olen) {
 						memmove(sp_prev, sp_prev + sp_prev_idx - olen, olen * 2);
 						sp_prev_idx = olen;
 					}
-					if (sp_prev_idx + olen <= SWITCH_RECOMMENDED_BUFFER_SIZE) {
-						memcpy(sp_prev + sp_prev_idx, bp, olen * 2);
-						sp_prev_idx += olen;
-					} else {
-						cont = 1;
-					}
+					memcpy(sp_prev + sp_prev_idx, bp, olen * 2);
+					sp_prev_idx += olen;
 
 					if (cont) {
 						continue;
@@ -2092,6 +2099,9 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 		if (fh->sp_audio_buffer) {
 			switch_buffer_destroy(&fh->sp_audio_buffer);
 		}
+
+		switch_safe_free(sp_prev);
+
 	}
 
 	if (switch_core_codec_ready((&codec))) {
