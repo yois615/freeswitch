@@ -1865,6 +1865,7 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 				int extra = datalen - olen;
 				short data[datalen * 2];
 				short* currp = NULL;
+				int best_cut_idx = 0;
 
 				memset(data, 0, sizeof(data));
 
@@ -1911,37 +1912,33 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 					currp = bp;
 				}
 
-				if (fh->speed != 0) {
-					int best_cut_idx = 0;
-					if (sp_has_overlap) {
-						double best = INT_MIN;
-						for (int idx_src = 0; idx_src < src_rng; idx_src++) {
-							double cc = 0;
-							for (int i = 0; i < sp_fadeLen; i++) {
-								cc += sp_ovrlap[i] * (*(currp + idx_src + i));
-							}
-							if (cc > best) {
-								best = cc;
-								best_cut_idx = idx_src;
-							}
-						}
-					}
-					currp += best_cut_idx;
-					switch_buffer_write(fh->sp_audio_buffer, currp, newlen * 2);
-					currp += newlen;
-
-					if (sp_has_overlap) {
-						short* ret = (short*)((unsigned char*)switch_buffer_get_head_pointer(fh->sp_audio_buffer) + switch_buffer_inuse(fh->sp_audio_buffer) - 2 * newlen);
-						// crossfade
+				if (sp_has_overlap) {
+					double best = INT_MIN;
+					for (int idx_src = 0; idx_src < src_rng; idx_src++) {
+						double cc = 0;
 						for (int i = 0; i < sp_fadeLen; i++) {
-							double factor = ((double)i) / sp_fadeLen;
-							*(ret + i) = (short)(sp_ovrlap[i] * (1 - factor) + *(ret + i) * factor);
+							cc += sp_ovrlap[i] * (*(currp + idx_src + i));
+						}
+						if (cc > best) {
+							best = cc;
+							best_cut_idx = idx_src;
 						}
 					}
-					memcpy(sp_ovrlap, currp, sp_fadeLen * 2);
-					sp_has_overlap = 1;
 				}
+				currp += best_cut_idx;
+				switch_buffer_write(fh->sp_audio_buffer, currp, newlen * 2);
+				currp += newlen;
 
+				if (sp_has_overlap) {
+					short* ret = (short*)((unsigned char*)switch_buffer_get_head_pointer(fh->sp_audio_buffer) + switch_buffer_inuse(fh->sp_audio_buffer) - 2 * newlen);
+					// crossfade
+					for (int i = 0; i < sp_fadeLen; i++) {
+						double factor = ((double)i) / sp_fadeLen;
+						*(ret + i) = (short)(sp_ovrlap[i] * (1 - factor) + *(ret + i) * factor);
+					}
+				}
+				memcpy(sp_ovrlap, currp, sp_fadeLen * 2);
+				sp_has_overlap = 1;
 				last_speed = fh->speed;
 				continue;
 			}
