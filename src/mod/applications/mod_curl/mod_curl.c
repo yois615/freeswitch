@@ -456,6 +456,11 @@ static void http_sendfile_initialize_curl(http_sendfile_data_t *http_data)
 	curl_easy_setopt(http_data->curl_handle, CURLOPT_WRITEFUNCTION, http_sendfile_response_callback);
 	curl_easy_setopt(http_data->curl_handle, CURLOPT_WRITEDATA, (void *) http_data);
 
+	/* If we have headers to send append them here */
+	if (http_data->headers) {
+		switch_curl_easy_setopt(http_data->curl_handle, CURLOPT_HTTPHEADER, http_data->headers);
+	}
+
 	/* Add the file to upload as a POST form field */
 	curl_formadd(&http_data->formpost, &http_data->lastptr, CURLFORM_COPYNAME, http_data->filename_element_name, CURLFORM_FILE, http_data->filename_element, CURLFORM_END);
 
@@ -567,12 +572,13 @@ static void http_sendfile_success_report(http_sendfile_data_t *http_data, switch
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "Sending of file %s to url %s resulted with code %lu\n", http_data->filename_element, http_data->url, http_data->http_response_code);
 }
 
-#define HTTP_SENDFILE_APP_SYNTAX "<url> <filenameParamName=filepath> [nopost|postparam1=foo&postparam2=bar... [event|none  [identifier ]]]"
+#define HTTP_SENDFILE_APP_SYNTAX "<url> [append_headers <header>] <filenameParamName=filepath> [nopost|postparam1=foo&postparam2=bar... [event|none  [identifier ]]]"
 SWITCH_STANDARD_APP(http_sendfile_app_function)
 {
 	switch_event_t *event = NULL;
 	char *argv[10] = { 0 }, *argv2[10] = { 0 };
 	int argc = 0, argc2 = 0;
+	int headers_idx = 0;
 	http_sendfile_data_t *http_data = NULL;
 	switch_memory_pool_t *pool = switch_core_session_get_pool(session);
 	switch_channel_t *channel = switch_core_session_get_channel(session);
@@ -593,10 +599,19 @@ SWITCH_STANDARD_APP(http_sendfile_app_function)
 		{
 			uint8_t i = 0;
 
-			if (argc < 2 || argc > 5)
+			if (argc < 2 || argc > 15)
 				goto http_sendfile_app_usage;
 
 			http_data->url = switch_core_strdup(http_data->pool, argv[i++]);
+
+			while (!strcasecmp("append_headers", argv[i])) {
+				if (++i >= argc - 1) {
+					goto http_sendfile_app_usage;
+				}
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "CURL sendfile append_header: %s\n", argv[i]);
+				http_data->headers = switch_curl_slist_append(http_data->headers, argv[i++]);
+				headers_idx += 2;
+			}
 
 			switch_url_decode(argv[i]);
 			argc2 = switch_separate_string(argv[i++], '=', argv2, (sizeof(argv2) / sizeof(argv2[0])));
@@ -609,11 +624,11 @@ SWITCH_STANDARD_APP(http_sendfile_app_function)
 			else
 				goto http_sendfile_app_usage;
 
-			if(argc > 2)
+			if(argc > 2 + headers_idx)
 			{
 				http_data->extrapost_elements = switch_core_strdup(pool, argv[i++]);
 
-				if(argc > 3)
+				if(argc > 3 + headers_idx)
 				{
 					if(!strncasecmp(argv[i++], "event", 5))
 					{
@@ -621,7 +636,7 @@ SWITCH_STANDARD_APP(http_sendfile_app_function)
 						switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "Setting output to event handler.\n");
 					}
 
-					if(argc > 4)
+					if(argc > 4 + headers_idx)
 					{
 						if(strncasecmp(argv[i], "uuid", 4))
 							http_data->identifier_str = switch_core_session_get_uuid(session);
@@ -641,7 +656,7 @@ SWITCH_STANDARD_APP(http_sendfile_app_function)
 		http_data->filename_element_name = (char *) switch_channel_get_variable_dup(channel, "curl_sendfile_filename_element", SWITCH_TRUE, -1);
 		http_data->filename_element = (char *) switch_channel_get_variable_dup(channel, "curl_sendfile_filename", SWITCH_TRUE, -1);
 		http_data->extrapost_elements = (char *) switch_channel_get_variable_dup(channel, "curl_sendfile_extrapost", SWITCH_TRUE, -1);
-
+		http_data->headers = switch_curl_slist_append(http_data->headers,(char *) switch_channel_get_variable_dup(channel, "curl_sendfile_append_headers", SWITCH_TRUE, -1));
 
 		if(zstr(http_data->url) || zstr(http_data->filename_element) || zstr(http_data->filename_element_name))
 			goto http_sendfile_app_usage;
@@ -691,7 +706,9 @@ SWITCH_STANDARD_APP(http_sendfile_app_function)
 	goto http_sendfile_app_done;
 
 http_sendfile_app_usage:
-	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "Failure:  Usage: <data=\"%s\">\nOr you can set chanvars curl_senfile_url, curl_sendfile_filename_element, curl_sendfile_filename, curl_sendfile_extrapost\n", HTTP_SENDFILE_APP_SYNTAX);
+	switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "Failure:  Usage: <data=\"%s\">\nOr you can set chanvars curl_senfile_url, "
+		"curl_sendfile_filename_element, curl_sendfile_filename, curl_sendfile_extrapost, curl_sendfile_append_headers\n", HTTP_SENDFILE_APP_SYNTAX);
+	goto http_sendfile_app_done;
 
 http_sendfile_app_done:
 	if (http_data->headers)
@@ -702,13 +719,14 @@ http_sendfile_app_done:
 	return;
 }
 
-#define HTTP_SENDFILE_SYNTAX "<url> <filenameParamName=filepath> [nopost|postparam1=foo&postparam2=bar... [event|stream|both|none  [identifier ]]]"
+#define HTTP_SENDFILE_SYNTAX "<url> [append_headers <header>] <filenameParamName=filepath> [nopost|postparam1=foo&postparam2=bar... [event|stream|both|none  [identifier ]]]"
 SWITCH_STANDARD_API(http_sendfile_function)
 {
 	switch_status_t status = SWITCH_STATUS_FALSE;
 	switch_bool_t new_memory_pool = SWITCH_FALSE;
 	char *argv[10] = { 0 }, *argv2[10] = { 0 };
 	int argc = 0, argc2 = 0;
+	int headers_idx = 0;
 	http_sendfile_data_t *http_data = NULL;
 	switch_memory_pool_t *pool = NULL;
 	switch_event_t *event = NULL;
@@ -742,13 +760,20 @@ SWITCH_STANDARD_API(http_sendfile_function)
 	{
 		uint8_t i = 0;
 
-		if (argc < 2 || argc > 5)
-		{
-			status = SWITCH_STATUS_SUCCESS;
-			goto http_sendfile_usage;
+		if (argc < 2 || argc > 15) {
+			switch_goto_status(SWITCH_STATUS_SUCCESS, http_sendfile_usage);
 		}
 
 		http_data->url = switch_core_strdup(pool, argv[i++]);
+
+		while (!strcasecmp("append_headers", argv[i])) {
+			if (++i >= argc - 1) {
+				switch_goto_status(SWITCH_STATUS_SUCCESS, http_sendfile_usage);
+			}
+			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "CURL sendfile append_header: %s\n", argv[i]);
+			http_data->headers = switch_curl_slist_append(http_data->headers, argv[i++]);
+			headers_idx += 2;
+		}
 
 		switch_url_decode(argv[i]);
 		argc2 = switch_separate_string(argv[i++], '=', argv2, (sizeof(argv2) / sizeof(argv2[0])));
@@ -758,17 +783,19 @@ SWITCH_STANDARD_API(http_sendfile_function)
 			http_data->filename_element_name = switch_core_strdup(pool, argv2[0]);
 			http_data->filename_element = switch_core_strdup(pool, argv2[1]);
 		}
-		else
-			goto http_sendfile_usage;
+		else {
+			switch_goto_status(SWITCH_STATUS_SUCCESS, http_sendfile_usage);
+		}
 
 		switch_url_decode(http_data->filename_element_name);
 		switch_url_decode(http_data->filename_element);
 
-		if(argc > 2)
+		if(argc > 2 + headers_idx)
 		{
+
 			http_data->extrapost_elements = switch_core_strdup(pool, argv[i++]);
 
-			if(argc > 3)
+			if(argc > 3 + headers_idx)
 			{
 				if(!strncasecmp(argv[i], "event", 5))
 					switch_set_flag(http_data, CSO_EVENT);
@@ -789,16 +816,17 @@ SWITCH_STANDARD_API(http_sendfile_function)
 
 				i++;
 
-				if(argc > 4)
+				if(argc > 4 + headers_idx)
 					http_data->identifier_str = switch_core_strdup(pool, argv[i++]);
 			}
 		}
 	}
 
 	// We need to check the file now...
-	if(http_sendfile_test_file_open(http_data, event) != SWITCH_STATUS_SUCCESS)
-		goto http_sendfile_done;
-
+	if(http_sendfile_test_file_open(http_data, event) != SWITCH_STATUS_SUCCESS) {
+		//Function already outputs error, skip to end
+		switch_goto_status(SWITCH_STATUS_SUCCESS, http_sendfile_done);
+	}
 
 	switch_file_close(http_data->file_handle);
 
@@ -808,12 +836,11 @@ SWITCH_STANDARD_API(http_sendfile_function)
 
 	http_sendfile_success_report(http_data, event);
 
-	status = SWITCH_STATUS_SUCCESS;
-	goto http_sendfile_done;
+	switch_goto_status(SWITCH_STATUS_SUCCESS, http_sendfile_done);
 
 http_sendfile_usage:
 	stream->write_function(stream, "-USAGE\n%s\n", HTTP_SENDFILE_SYNTAX);
-	goto http_sendfile_done;
+	switch_goto_status(SWITCH_STATUS_SUCCESS, http_sendfile_done);
 
 http_sendfile_done:
 	if (http_data && http_data->headers)
