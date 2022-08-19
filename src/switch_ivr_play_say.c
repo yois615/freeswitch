@@ -1352,11 +1352,11 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 	for (cur = 0; switch_channel_ready(channel) && !done && cur < argc; cur++) {
 		const int sp_fadeLen = 32;
 		const int sp_cut_src_rng = 64;
-		short sp_ovrlap[32];
-		short sp_has_overlap = 0;
+		int16_t sp_ovrlap[32];
+		int sp_has_overlap = 0;
 		int sp_prev_idx = 0;
 		int sp_prev_cap = 0;
-		short *sp_prev = NULL;
+		int16_t *sp_prev = NULL;
 
 		file = argv[cur];
 		eof = 0;
@@ -1857,15 +1857,15 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 
 			if (!switch_test_flag(fh, SWITCH_FILE_NATIVE) && fh->speed && do_speed) {
 				float factor = 0.17f * abs(fh->speed);
-				short* bp = write_frame.data;
+				int16_t* bp = write_frame.data;
 				switch_size_t supplement = (int) (factor * olen);
 				switch_size_t newlen = (fh->speed > 0) ? olen - supplement : olen + supplement;
 				int src_rng = (fh->speed > 0 ? supplement : sp_cut_src_rng)* sp_has_overlap;
 				int datalen = newlen + src_rng + sp_fadeLen;
 				int extra = datalen - olen;
-				short data[datalen * 2];
-				short* currp = NULL;
+				int16_t data[datalen * 2];
 				int best_cut_idx = 0;
+				int16_t* currp = NULL;
 
 				memset(data, 0, sizeof(data));
 
@@ -1901,6 +1901,7 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 						memmove(sp_prev, sp_prev + sp_prev_idx - olen, olen * 2);
 						sp_prev_idx = olen;
 					}
+
 					memcpy(sp_prev + sp_prev_idx, bp, olen * 2);
 					sp_prev_idx += olen;
 
@@ -1925,18 +1926,20 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 						}
 					}
 				}
+
 				currp += best_cut_idx;
 				switch_buffer_write(fh->sp_audio_buffer, currp, newlen * 2);
 				currp += newlen;
 
 				if (sp_has_overlap) {
-					short* ret = (short*)((unsigned char*)switch_buffer_get_head_pointer(fh->sp_audio_buffer) + switch_buffer_inuse(fh->sp_audio_buffer) - 2 * newlen);
+					int16_t* ret = (int16_t*)((unsigned char*)switch_buffer_get_head_pointer(fh->sp_audio_buffer) + switch_buffer_inuse(fh->sp_audio_buffer) - 2 * newlen);
 					// crossfade
 					for (int i = 0; i < sp_fadeLen; i++) {
 						double factor = ((double)i) / sp_fadeLen;
-						*(ret + i) = (short)(sp_ovrlap[i] * (1 - factor) + *(ret + i) * factor);
+						*(ret + i) = (int16_t)(sp_ovrlap[i] * (1 - factor) + *(ret + i) * factor);
 					}
 				}
+
 				memcpy(sp_ovrlap, currp, sp_fadeLen * 2);
 				sp_has_overlap = 1;
 				last_speed = fh->speed;
