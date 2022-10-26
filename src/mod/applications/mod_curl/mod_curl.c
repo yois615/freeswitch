@@ -133,6 +133,7 @@ typedef struct callback_obj callback_t;
 struct curl_options_obj {
 	long connect_timeout;
 	long timeout;
+	switch_bool_t sensitive;
 	int insecure;
 	char *proxy;
 };
@@ -238,7 +239,8 @@ static http_data_t *do_lookup_url(switch_memory_pool_t *pool, const char *url, c
 	if (append_headers) {
 		int ah_index = 0;
 		while(append_headers[ah_index] && *append_headers[ah_index]) {
-			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "CURL append_header_%d: %s\n", ah_index, append_headers[ah_index]);
+			if (!options->sensitive)
+				switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "CURL append_header_%d: %s\n", ah_index, append_headers[ah_index]);
 			headers = switch_curl_slist_append(headers, append_headers[ah_index]);
 			ah_index++;
 		}
@@ -254,7 +256,8 @@ static http_data_t *do_lookup_url(switch_memory_pool_t *pool, const char *url, c
 			headers = switch_curl_slist_append(headers, ct);
 			switch_safe_free(ct);
 		}
-		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "Post data: %s\n", data);
+		if (!options->sensitive)
+			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "Post data: %s\n", data);
 	} else if (!strcasecmp(method, "patch")) {
 		switch_curl_easy_setopt(curl_handle, CURLOPT_CUSTOMREQUEST, "PATCH");
 		switch_curl_easy_setopt(curl_handle, CURLOPT_POSTFIELDSIZE, strlen(data));
@@ -898,6 +901,8 @@ SWITCH_STANDARD_APP(curl_app_function)
 
 	switch_memory_pool_t *pool = switch_core_session_get_pool(session);
 	switch_channel_t *channel = switch_core_session_get_channel(session);
+	switch_bool_t sensitive = switch_true(switch_channel_get_variable_dup(channel, SWITCH_SENSITIVE_DTMF_VARIABLE, SWITCH_FALSE, -1));
+
 	char *url = NULL;
 	char *method = NULL;
 	char *postdata = "";
@@ -968,6 +973,7 @@ SWITCH_STANDARD_APP(curl_app_function)
 
 	if (curl_timeout) options.timeout = atoi(curl_timeout);
 
+	if (sensitive) options.sensitive = SWITCH_TRUE;
 
 	http_data = do_lookup_url(pool, url, method, postdata, content_type, append_headers, &options);
 
