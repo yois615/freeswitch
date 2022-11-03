@@ -7408,12 +7408,14 @@ static int _wrap_CoreSession_streamFile(lua_State* L) {
   CoreSession *arg1 = (CoreSession *) 0 ;
   char *arg2 = (char *) 0 ;
   int arg3 = (int) 0 ;
+  int arg4 = (int) 0 ;
   int result;
   
-  SWIG_check_num_args("CoreSession::streamFile",2,3)
+  SWIG_check_num_args("CoreSession::streamFile",2,4)
   if(!SWIG_isptrtype(L,1)) SWIG_fail_arg("CoreSession::streamFile",1,"CoreSession *");
   if(!SWIG_lua_isnilstring(L,2)) SWIG_fail_arg("CoreSession::streamFile",2,"char *");
   if(lua_gettop(L)>=3 && !lua_isnumber(L,3)) SWIG_fail_arg("CoreSession::streamFile",3,"int");
+  if(lua_gettop(L)>=4 && !lua_isnumber(L,4)) SWIG_fail_arg("CoreSession::streamFile",4,"int");
   
   if (!SWIG_IsOK(SWIG_ConvertPtr(L,1,(void**)&arg1,SWIGTYPE_p_CoreSession,0))){
     SWIG_fail_ptr("CoreSession_streamFile",1,SWIGTYPE_p_CoreSession);
@@ -7423,7 +7425,10 @@ static int _wrap_CoreSession_streamFile(lua_State* L) {
   if(lua_gettop(L)>=3){
     arg3 = (int)lua_tonumber(L, 3);
   }
-  result = (int)(arg1)->streamFile(arg2,arg3);
+  if(lua_gettop(L)>=4){
+    arg4 = (int)lua_tonumber(L, 4);
+  }
+  result = (int)(arg1)->streamFile(arg2,arg3,arg4);
   lua_pushnumber(L, (lua_Number) result); SWIG_arg++;
   return SWIG_arg;
   
