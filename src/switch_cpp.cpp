@@ -1099,7 +1099,7 @@ SWITCH_DECLARE(void) CoreSession::sayPhrase(const char *phrase_name, const char 
     end_allow_threads();
 }
 
-SWITCH_DECLARE(int) CoreSession::streamFile(char *file, int starting_sample_count) {
+SWITCH_DECLARE(int) CoreSession::streamFile(char *file, int starting_sample_count, int starting_speed) {
 
     switch_status_t status;
     //switch_file_handle_t fh = { 0 };
@@ -1112,6 +1112,7 @@ SWITCH_DECLARE(int) CoreSession::streamFile(char *file, int starting_sample_coun
 	memset(&local_fh, 0, sizeof(local_fh));
 	fhp = &local_fh;
     local_fh.samples = starting_sample_count;
+    local_fh.speed = starting_speed;
 
 
 	if ((prebuf = switch_channel_get_variable(this->channel, "stream_prebuffer"))) {
