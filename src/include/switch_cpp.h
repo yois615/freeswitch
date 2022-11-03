@@ -352,7 +352,7 @@ SWITCH_DECLARE(bool) email(char *to, char *from, char *headers = NULL, char *bod
 	 * \return an int status code indicating success or failure
 	 *
 	 */
-		 SWITCH_DECLARE(int) streamFile(char *file, int starting_sample_count = 0);
+		 SWITCH_DECLARE(int) streamFile(char *file, int starting_sample_count = 0, int starting_speed = 0);
 		 SWITCH_DECLARE(int) sleep(int ms, int sync=0);
 
 	/** \brief flush any pending events
