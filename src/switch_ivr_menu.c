@@ -581,6 +581,7 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_menu_execute(switch_core_session_t *s
 										  "IVR action on menu '%s' matched '%s' param '%s'\n", menu->name, menu->buf, aptr);
 					}
 
+					switch_channel_set_variable(channel, "ivr_menu_keypress", menu->buf);
 					switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "switch_ivr_menu_execute todo=[%d]\n", todo);
 
 					switch (todo) {
