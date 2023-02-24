@@ -1969,6 +1969,10 @@ static void *SWITCH_THREAD_FUNC outbound_agent_thread_run(switch_thread_t *threa
 			playback_array(agent_session, o_announce);
 		}
 
+		/* This is used to set the reason for callcenter_function breakout */
+		switch_channel_set_variable(member_channel, "cc_agent_found", "true");
+		switch_channel_set_variable(member_channel, "cc_agent_uuid", agent_uuid);
+
 		if (switch_true(switch_channel_get_variable(member_channel, SWITCH_BYPASS_MEDIA_AFTER_BRIDGE_VARIABLE)) || switch_true(switch_channel_get_variable(agent_channel, SWITCH_BYPASS_MEDIA_AFTER_BRIDGE_VARIABLE))) {
 			switch_channel_set_flag(member_channel, CF_BYPASS_MEDIA_AFTER_BRIDGE);
 		}
@@ -2012,12 +2016,8 @@ static void *SWITCH_THREAD_FUNC outbound_agent_thread_run(switch_thread_t *threa
 			switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(member_session), SWITCH_LOG_DEBUG, "Member \"%s\" %s is bridged to agent %s\n",
 										   h->member_cid_name, h->member_cid_number, h->agent_name);
 
-			/* This is used for the waiting caller to quit waiting for a agent */
-			switch_channel_set_variable(member_channel, "cc_agent_found", "true");
-
 			switch_channel_set_variable(member_channel, "cc_agent_bridged", "true");
 			switch_channel_set_variable(agent_channel, "cc_agent_bridged", "true");
-			switch_channel_set_variable(member_channel, "cc_agent_uuid", agent_uuid);
 
 			/* Update member to Answered state, previous Trying */
 			sql = switch_mprintf("UPDATE members SET state = '%q', bridge_epoch = '%" SWITCH_TIME_T_FMT "' WHERE uuid = '%q' AND instance_id = '%q'",
@@ -3195,8 +3195,8 @@ SWITCH_STANDARD_APP(callcenter_function)
 		args.buf = (void *) &ht;
 		args.buflen = sizeof(h);
 
-		/* An agent was found, time to exit and let the bridge do it job */
-		if ((p = switch_channel_get_variable(member_channel, "cc_agent_found")) && (agent_found = switch_true(p))) {
+		/* If the bridge didn't break the loop, break out now */
+		if ((p = switch_channel_get_variable(member_channel, "cc_agent_bridged")) && (agent_found = switch_true(p))) {
 			break;
 		}
 		/* If the member thread set a different reason, we monitor it so we can quit the wait */
