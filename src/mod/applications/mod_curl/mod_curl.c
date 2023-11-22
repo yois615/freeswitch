@@ -102,6 +102,7 @@ struct http_sendfile_data_obj {
 	char *filename_element;
 	char *filename_element_name;
 	char *extrapost_elements;
+	long timeout;
 	switch_CURL *curl_handle;
 	char *cacert;
 #if defined(LIBCURL_VERSION_NUM) && (LIBCURL_VERSION_NUM >= 0x073800)
@@ -456,6 +457,8 @@ static void http_sendfile_initialize_curl(http_sendfile_data_t *http_data)
 	curl_easy_setopt(http_data->curl_handle, CURLOPT_URL, http_data->url);
 	curl_easy_setopt(http_data->curl_handle, CURLOPT_NOSIGNAL, 1);
 	curl_easy_setopt(http_data->curl_handle, CURLOPT_USERAGENT, "freeswitch-curl/1.0");
+	if (http_data->timeout)
+		switch_curl_easy_setopt(http_data->curl_handle, CURLOPT_TIMEOUT, http_data->timeout);
 
 	http_data->sendfile_response = switch_core_alloc(http_data->pool, sizeof(char) * HTTP_SENDFILE_RESPONSE_SIZE);
 	memset(http_data->sendfile_response, 0, sizeof(char) * HTTP_SENDFILE_RESPONSE_SIZE);
@@ -617,6 +620,7 @@ SWITCH_STANDARD_APP(http_sendfile_app_function)
 	http_sendfile_data_t *http_data = NULL;
 	switch_memory_pool_t *pool = switch_core_session_get_pool(session);
 	switch_channel_t *channel = switch_core_session_get_channel(session);
+	const char *curl_sendfile_timeout = switch_channel_get_variable(channel, "curl_sendfile_timeout");
 
 	assert(channel != NULL);
 
@@ -723,6 +727,11 @@ SWITCH_STANDARD_APP(http_sendfile_app_function)
 		}
 	}
 
+	/* Set timeout from channel variable here */
+	if (curl_sendfile_timeout) {
+		http_data->timeout = atoi(curl_sendfile_timeout);
+	}
+
 	switch_url_decode(http_data->filename_element_name);
 	switch_url_decode(http_data->filename_element);
 
@@ -754,7 +763,7 @@ http_sendfile_app_done:
 	return;
 }
 
-#define HTTP_SENDFILE_SYNTAX "<url> [append_headers <header>] <filenameParamName=filepath> [nopost|postparam1=foo&postparam2=bar... [event|stream|both|none  [identifier ]]]"
+#define HTTP_SENDFILE_SYNTAX "<url> [append_headers <header>] [timeout <sec>] <filenameParamName=filepath> [nopost|postparam1=foo&postparam2=bar... [event|stream|both|none  [identifier ]]]"
 SWITCH_STANDARD_API(http_sendfile_function)
 {
 	switch_status_t status = SWITCH_STATUS_FALSE;
@@ -795,7 +804,7 @@ SWITCH_STANDARD_API(http_sendfile_function)
 	{
 		uint8_t i = 0;
 
-		if (argc < 2 || argc > 15) {
+		if (argc < 2 || argc > 17) {
 			switch_goto_status(SWITCH_STATUS_SUCCESS, http_sendfile_usage);
 		}
 
@@ -807,6 +816,15 @@ SWITCH_STANDARD_API(http_sendfile_function)
 			}
 			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "CURL sendfile append_header: %s\n", argv[i]);
 			http_data->headers = switch_curl_slist_append(http_data->headers, argv[i++]);
+			headers_idx += 2;
+		}
+
+		if (!strcasecmp("timeout", argv[i])) {
+			if (++i >= argc - 1) {
+				switch_goto_status(SWITCH_STATUS_SUCCESS, http_sendfile_usage);
+			}
+			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG, "CURL sendfile timeout: %s\n", argv[i]);
+			http_data->timeout = atoi(argv[i++]);
 			headers_idx += 2;
 		}
 
