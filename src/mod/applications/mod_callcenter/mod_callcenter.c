@@ -2007,8 +2007,9 @@ static void *SWITCH_THREAD_FUNC outbound_agent_thread_run(switch_thread_t *threa
 			}
 		} else if (!bridged && !switch_channel_up(agent_channel)) {
 			switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(member_session), SWITCH_LOG_DEBUG, "Failed to bridge, agent %s has no session\n", h->agent_name);
-			/* Put back member on Waiting state, previous Trying */
-			sql = switch_mprintf("UPDATE members SET state = 'Waiting' WHERE uuid = '%q' AND instance_id = '%q'", h->member_uuid, globals.cc_instance_id);
+			/* This is bad, because the member got dropped. Mark abandoned */
+			sql = switch_mprintf("UPDATE members SET state = '%q', session_uuid = '', abandoned_epoch = '%" SWITCH_TIME_T_FMT "' WHERE uuid = '%q' AND instance_id = '%q'",
+				cc_member_state2str(CC_MEMBER_STATE_ABANDONED), local_epoch_time_now(NULL), h->member_uuid, globals.cc_instance_id);
 			cc_execute_sql(NULL, sql, NULL);
 			switch_safe_free(sql);
 		} else {
