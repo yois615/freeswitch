@@ -893,7 +893,6 @@ long sofia_reg_uniform_distribution(int max)
 void sofia_reg_check_ping_expire(sofia_profile_t *profile, time_t now, int interval)
 {
 	char *sql;
-	long next;
 	char buf[32] = "";
 	int count;
 
@@ -940,8 +939,8 @@ void sofia_reg_check_ping_expire(sofia_profile_t *profile, time_t now, int inter
 			switch_safe_free(sql);
 		}
 
-		sql = switch_mprintf("select count(*) from sip_registrations where hostname='%q' and profile_name='%q' and ping_expires <= %ld",
-							 mod_sofia_globals.hostname, profile->name, (long) now);
+		sql = switch_mprintf("select count(*) from sip_registrations where ping_expires > 0 and ping_expires <= %ld and hostname='%q' and profile_name='%q'",
+							 (long) now, mod_sofia_globals.hostname, profile->name);
 
 		sofia_glue_execute_sql2str(profile, profile->dbh_mutex, sql, buf, sizeof(buf));
 		switch_safe_free(sql);
@@ -950,10 +949,9 @@ void sofia_reg_check_ping_expire(sofia_profile_t *profile, time_t now, int inter
 		/* only update if needed */
 		if (count) {
 			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_DEBUG9, "Updating ping expires for profile %s\n", profile->name);
-			next = (long) now + interval;
 
-			sql = switch_mprintf("update sip_registrations set ping_expires = %ld where hostname='%q' and profile_name='%q' and ping_expires <= %ld ",
-								 next, mod_sofia_globals.hostname, profile->name, (long) now);
+			sql = switch_mprintf("update sip_registrations set ping_expires = ping_expires + %d where ping_expires > 0 and ping_expires <= %ld and hostname='%q' and profile_name='%q'",
+								 interval, (long) now, mod_sofia_globals.hostname, profile->name);
 			sofia_glue_execute_sql(profile, &sql, SWITCH_TRUE);
 		}
 	}
