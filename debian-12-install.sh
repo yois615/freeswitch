@@ -86,6 +86,8 @@ cd /usr/share
 groupadd freeswitch
 adduser --quiet --system --home /usr/share/freeswitch --gecos "FreeSWITCH open source softswitch" --ingroup freeswitch freeswitch --disabled-password
 chown -R freeswitch:freeswitch /usr/share/freeswitch/ 
+mkdir -p /var/cache/freeswitch
+chown -R freeswitch:freeswitch /var/cache/freeswitch
 chmod -R ug=rwX,o= /usr/share/freeswitch/
 chmod -R u=rwx,g=rx /etc/freeswitch/
 
