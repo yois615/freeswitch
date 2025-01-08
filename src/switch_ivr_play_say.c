@@ -1939,7 +1939,7 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 				if (sp_has_overlap) {
 					int16_t* ret = (int16_t*)((unsigned char*)switch_buffer_get_head_pointer(fh->sp_audio_buffer) + switch_buffer_inuse(fh->sp_audio_buffer) - 2 * newlen);
 					// crossfade
-					for (int i = 0; i < sp_fadeLen; i++) {
+					for (int i = 0; i < (newlen < sp_fadeLen ? newlen : sp_fadeLen); i++) {
 						double factor = ((double)i) / sp_fadeLen;
 						*(ret + i) = (int16_t)(sp_ovrlap[i] * (1 - factor) + *(ret + i) * factor);
 					}
