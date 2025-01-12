@@ -83,6 +83,7 @@ struct http_data_obj {
 	switch_size_t max_bytes;
 	switch_memory_pool_t *pool;
 	int err;
+	int timedout;
 	long http_response_code;
 	char *http_response;
 	char *cacert;
@@ -103,6 +104,7 @@ struct http_sendfile_data_obj {
 	char *filename_element_name;
 	char *extrapost_elements;
 	long timeout;
+	int timedout;
 	switch_CURL *curl_handle;
 	char *cacert;
 #if defined(LIBCURL_VERSION_NUM) && (LIBCURL_VERSION_NUM >= 0x073800)
@@ -190,6 +192,7 @@ static http_data_t *do_lookup_url(switch_memory_pool_t *pool, const char *url, c
 	http_data_t *http_data = NULL;
 	switch_curl_slist_t *headers = NULL;
 	struct data_stream dstream = { NULL };
+	int curl_result = CURLE_OK;
 
 	assert(options);
 
@@ -312,10 +315,14 @@ static http_data_t *do_lookup_url(switch_memory_pool_t *pool, const char *url, c
 	switch_curl_easy_setopt(curl_handle, CURLOPT_HEADERDATA, (void *) http_data);
 	switch_curl_easy_setopt(curl_handle, CURLOPT_USERAGENT, "freeswitch-curl/1.0");
 
-	switch_curl_easy_perform(curl_handle);
+	curl_result = switch_curl_easy_perform(curl_handle);
+
 	switch_curl_easy_getinfo(curl_handle, CURLINFO_RESPONSE_CODE, &httpRes);
 	switch_curl_easy_cleanup(curl_handle);
 	switch_curl_slist_free_all(headers);
+
+	if (curl_result == CURLE_OPERATION_TIMEDOUT)
+		http_data->timedout = 1;
 
 	if (http_data->stream.data && !zstr((char *) http_data->stream.data) && strcmp(" ", http_data->stream.data)) {
 
@@ -427,6 +434,7 @@ static size_t http_sendfile_response_callback(void *ptr, size_t size, size_t nme
 static void http_sendfile_initialize_curl(http_sendfile_data_t *http_data)
 {
 	uint8_t count;
+	int curl_result = CURLE_OK;
 	http_data->curl_handle = curl_easy_init();
 
 	if (!strncasecmp(http_data->url, "https", 5))
@@ -527,8 +535,10 @@ static void http_sendfile_initialize_curl(http_sendfile_data_t *http_data)
 #endif
 
 	// This part actually fires off the curl, captures the HTTP response code, and then frees up the handle.
-	curl_easy_perform(http_data->curl_handle);
+	curl_result = curl_easy_perform(http_data->curl_handle);
 	curl_easy_getinfo(http_data->curl_handle, CURLINFO_RESPONSE_CODE, &http_data->http_response_code);
+	if (curl_result == CURLE_OPERATION_TIMEDOUT)
+		http_data->timedout = 1;
 
 	curl_easy_cleanup(http_data->curl_handle);
 
@@ -560,7 +570,7 @@ static switch_status_t http_sendfile_test_file_open(http_sendfile_data_t *http_d
 		}
 
 		if((switch_test_flag(http_data, CSO_STREAM) || switch_test_flag(http_data, CSO_NONE)) && http_data->stream)
-			http_data->stream->write_function(http_data->stream, "-Err Unable to open file %s\n", http_data->filename_element);
+			http_data->stream->write_function(http_data->stream, "-ERR Unable to open file %s\n", http_data->filename_element);
 
 		if(switch_test_flag(http_data, CSO_NONE) && !http_data->stream)
 			switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_ERROR, "curl_sendfile: Unable to open file %s\n", http_data->filename_element);
@@ -582,7 +592,11 @@ static void http_sendfile_success_report(http_sendfile_data_t *http_data, switch
 			switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "Command-Execution-Identifier", http_data->identifier_str);
 			switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "Filename", http_data->filename_element);
 			switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "File-Access", "Success");
-			switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "REST-HTTP-Code", code_as_string);
+			if (http_data->timedout) {
+				switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "REST-HTTP-Code", "Timedout");
+			} else {
+				switch_event_add_header_string(event, SWITCH_STACK_BOTTOM, "REST-HTTP-Code", code_as_string);
+			}
 			switch_event_add_body(event, "%s", http_data->sendfile_response);
 
 			switch_event_fire(&event);
@@ -597,14 +611,24 @@ static void http_sendfile_success_report(http_sendfile_data_t *http_data, switch
 		if(http_data->http_response_code == 200)
 			http_data->stream->write_function(http_data->stream, "+200 Ok\n");
 		else
-			http_data->stream->write_function(http_data->stream, "-%d Err\n", http_data->http_response_code);
+			if (http_data->timedout) {
+				http_data->stream->write_function(http_data->stream, "-ERR Timedout\n");
+			} else {
+				http_data->stream->write_function(http_data->stream, "-%d ERR\n", http_data->http_response_code);
+			}
 
 		if(http_data->sendfile_response_count && switch_test_flag(http_data, CSO_STREAM))
 			http_data->stream->write_function(http_data->stream, "%s\n", http_data->sendfile_response);
 	}
 
-	else if(switch_test_flag(http_data, CSO_STREAM) && http_data->stream && http_data->sendfile_response_count)
-			http_data->stream->write_function(http_data->stream, "%s\n", http_data->sendfile_response);
+	else if(http_data->timedout)
+			http_data->stream->write_function(http_data->stream, "-ERR Timedout\n");
+
+	else if(switch_test_flag(http_data, CSO_STREAM) && http_data->stream && http_data->sendfile_response_count) {
+		if (http_data->http_response_code != 200)
+			http_data->stream->write_function(http_data->stream, "-%d ERR\n", http_data->http_response_code);
+		http_data->stream->write_function(http_data->stream, "%s\n", http_data->sendfile_response);
+	}
 
 	if(switch_test_flag(http_data, CSO_NONE) && !http_data->stream)
 		switch_log_printf(SWITCH_CHANNEL_LOG, SWITCH_LOG_INFO, "Sending of file %s to url %s resulted with code %lu\n", http_data->filename_element, http_data->url, http_data->http_response_code);
@@ -1007,10 +1031,20 @@ SWITCH_STANDARD_APP(curl_app_function)
 			}
 			stream.write_function(&stream, "\n");
 		}
+		if (http_data->timedout) {
+			stream.write_function(&stream, "-ERR Timedout\n");
+		}
+		else if (http_data->http_response_code != 200) {
+			stream.write_function(&stream, "-%d ERR\n", http_data->http_response_code);
+		}
 		stream.write_function(&stream, "%s", http_data->http_response ? http_data->http_response : "");
 		switch_channel_set_variable(channel, "curl_response_data", stream.data);
 	}
-	switch_channel_set_variable(channel, "curl_response_code", switch_core_sprintf(pool, "%ld", http_data->http_response_code));
+	if (http_data->timedout) {
+		switch_channel_set_variable(channel, "curl_response_code", "timedout");
+	} else {
+		switch_channel_set_variable(channel, "curl_response_code", switch_core_sprintf(pool, "%ld", http_data->http_response_code));
+	}
 	switch_channel_set_variable(channel, "curl_method", method);
 
 	switch_goto_status(SWITCH_STATUS_SUCCESS, done);
@@ -1134,6 +1168,12 @@ SWITCH_STANDARD_API(curl_function)
 					slist = slist->next;
 				}
 				stream->write_function(stream, "\n");
+			}
+			if (http_data->timedout) {
+				stream->write_function(stream, "-ERR Timedout\n");
+			}
+			else if (http_data->http_response_code != 200) {
+				stream->write_function(stream, "-%d ERR\n", http_data->http_response_code);
 			}
 			stream->write_function(stream, "%s", http_data->http_response ? http_data->http_response : "");
 		}
