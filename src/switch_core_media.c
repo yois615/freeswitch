@@ -3023,6 +3023,15 @@ SWITCH_DECLARE(switch_status_t) switch_core_media_read_frame(switch_core_session
 
 		if (switch_rtp_has_dtmf(engine->rtp_session)) {
 			switch_dtmf_t dtmf = { 0 };
+			switch_media_bug_t *bug;
+
+			// If we're getting RFC2833 then stop looking at inband audio
+			if ((bug = switch_channel_get_private(session->channel, "dtmf"))) {
+				switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_DEBUG, "Turning off inband DTMF detection\n");
+				switch_channel_set_private(session->channel, "dtmf", NULL);
+				switch_core_media_bug_remove(session, &bug);
+			}
+
 			switch_rtp_dequeue_dtmf(engine->rtp_session, &dtmf);
 			switch_channel_queue_dtmf(session->channel, &dtmf);
 		}
