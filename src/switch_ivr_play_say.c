@@ -1362,6 +1362,7 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 		int sp_prev_idx = 0;
 		int sp_prev_cap = 0;
 		int16_t *sp_prev = NULL;
+		float resample_factor = 1.0;
 
 		file = argv[cur];
 		eof = 0;
@@ -1616,6 +1617,7 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 			samples = codec.implementation->samples_per_packet;
 			framelen = codec.implementation->decoded_bytes_per_packet;
 			channels = codec.implementation->number_of_channels;
+			resample_factor = (float)fh->native_rate / fh->samplerate;
 		}
 
 		last_native = test_native;
@@ -1779,7 +1781,7 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 					}
 				}
 
-				fh->offset_pos += (uint32_t)(switch_test_flag(fh, SWITCH_FILE_NATIVE) ? bread : bread / 2);
+				fh->offset_pos += (uint32_t)(switch_test_flag(fh, SWITCH_FILE_NATIVE) ? bread : bread / 2 * resample_factor);
 
 				if (bread < framelen) {
 					memset(abuf + bread, 255, framelen - bread);
@@ -1829,7 +1831,7 @@ SWITCH_DECLARE(switch_status_t) switch_ivr_play_file(switch_core_session_t *sess
 
 				switch_buffer_write(fh->audio_buffer, abuf, switch_test_flag(fh, SWITCH_FILE_NATIVE) ? olen : olen * 2 * fh->channels);
 				olen = switch_buffer_read(fh->audio_buffer, abuf, framelen);
-				fh->offset_pos += (uint32_t)(olen / 2);
+				fh->offset_pos += (uint32_t)(olen / 2 * resample_factor);
 
 				if (!switch_test_flag(fh, SWITCH_FILE_NATIVE)) {
 					olen /= 2;
