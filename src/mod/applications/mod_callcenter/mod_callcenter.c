@@ -2681,7 +2681,8 @@ static int members_callback(void *pArg, int argc, char **argv, char **columnName
 					cc_member_state2str(CC_MEMBER_STATE_TRYING), cc_member_state2str(CC_MEMBER_STATE_WAITING), cbt.member_uuid, cbt.member_system);
 			cc_execute_sql(NULL, sql, NULL);
 			switch_safe_free(sql);
-			sql_order_by = switch_mprintf("level, position");
+			/* For ring-all the order doesn't matter, but for ring-progressively we can start with whoever hasn't gotten a call recently */
+			sql_order_by = switch_mprintf("level, agents.last_offered_call, position");
 		} else if(!strcasecmp(queue_strategy, "random")) {
 			sql_order_by = switch_mprintf("level, random()");
 		} else if(!strcasecmp(queue_strategy, "sequentially-by-agent-order")) {
