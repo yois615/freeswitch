@@ -13,7 +13,8 @@ PREFIX=/usr/share/freeswitch
 sudo rm -rf $PREFIX
 
 #install dependencies
-sudo apt-get update && sudo apt-get install -y git-core build-essential python-is-python3 python3-dev autoconf automake libtool libncurses5 libncurses5-dev make libjpeg-dev libmpg123-dev pkg-config zlib1g-dev sqlite3 libsqlite3-dev libpcre3-dev libspeexdsp-dev libspeex-dev libedit-dev libldns-dev liblua5.2-dev libcurl4-gnutls-dev libapr1-dev yasm libsndfile-dev libopus-dev libtiff-dev libavformat-dev libswscale-dev libswresample-dev libpq-dev zip libmemcached-dev libshout3-dev sox libsox-fmt-mp3 sngrep libmp3lame-dev python3-setuptools
+sudo apt-get update && sudo apt-get install -y git-core build-essential python-is-python3 python3-dev autoconf automake libtool libncurses5 libncurses5-dev make libjpeg-dev libmpg123-dev pkg-config zlib1g-dev sqlite3 libsqlite3-dev libpcre3-dev libspeexdsp-dev libspeex-dev libedit-dev libldns-dev liblua5.2-dev libcurl4-gnutls-dev libapr1-dev yasm libsndfile-dev libopus-dev libtiff-dev libavformat-dev libswscale-dev libswresample-dev libpq-dev zip libmemcached-dev libshout3-dev sox libsox-fmt-mp3 sngrep libmp3lame-dev python3-setuptools libjansson-dev
+cd ../
 
 #cd back one
 cd ..
@@ -41,6 +42,28 @@ then
     git clone https://github.com/freeswitch/sofia-sip.git
     cd sofia-sip
     git checkout v1.13.17
+    ./bootstrap.sh
+    ./configure
+    make
+    sudo make install
+    cd ..
+
+    #build and install libjwt
+    rm -dfr libjwt
+    git clone https://github.com/benmcollins/libjwt.git
+    cd libjwt
+    git checkout v1.18.3
+    autoreconf -i
+    ./configure
+    make
+    sudo make install
+    cd ..
+
+
+    #build and install libstirshaken
+    rm -dfr libstirshaken
+    git clone https://github.com/yois615/libstirshaken.git
+    cd libstirshaken
     ./bootstrap.sh
     ./configure
     make
