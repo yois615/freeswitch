@@ -10,7 +10,7 @@ FREESWITCH_RELEASE=1.10.12 #or set this to any other version, for example: v1.10
 PREFIX=/usr/share/freeswitch
 
 #Clean old prefix and build
-sudo rm -rf $PREFIX
+sudo rm -rI $PREFIX
 
 #install dependencies
 sudo apt-get update && sudo apt-get install -y git-core build-essential python-is-python3 python3-dev autoconf automake libtool libncurses5 libncurses5-dev make libjpeg-dev libmpg123-dev pkg-config zlib1g-dev sqlite3 libsqlite3-dev libpcre3-dev libspeexdsp-dev libspeex-dev libedit-dev libldns-dev liblua5.2-dev libcurl4-gnutls-dev libapr1-dev yasm libsndfile-dev libopus-dev libtiff-dev libavformat-dev libswscale-dev libswresample-dev libpq-dev zip libmemcached-dev libshout3-dev sox libsox-fmt-mp3 sngrep libmp3lame-dev python3-setuptools libjansson-dev
@@ -35,6 +35,14 @@ then
     ./configure
     make
     sudo make install
+    cd ..
+
+    #build and install libks
+    rm -dfr libks
+    git clone https://github.com/signalwire/libks.git
+    cmake .
+    make
+    make install
     cd ..
 
     #build and install mod_sofia
