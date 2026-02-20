@@ -6850,7 +6850,7 @@ SWITCH_MODULE_LOAD_FUNCTION(mod_sofia_load)
 				   "private sofia sla function", sofia_sla_function, "<uuid>", SAF_NONE);
 
 	SWITCH_ADD_APP(app_interface, "sofia_stir_shaken_vs", "Verify SIP Identity header and store result in sip_verstat channel variable",
-				   "Verify SIP Identity header and store result in sip_verstat channel variable", sofia_stir_shaken_vs_function, "", SAF_SUPPORT_NOMEDIA);
+				   "Verify SIP Identity header and store result in sip_verstat channel variable", sofia_stir_shaken_vs_function, "", SAF_SUPPORT_NOMEDIA | SAF_ROUTING_EXEC);
 
 	SWITCH_ADD_API(api_interface, "sofia", "Sofia Controls", sofia_function, "<cmd> <args>");
 	SWITCH_ADD_API(api_interface, "sofia_gateway_data", "Get data from a sofia gateway", sofia_gateway_data_function, "<gateway_name> [ivar|ovar|var] <name>");
