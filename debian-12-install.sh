@@ -78,6 +78,9 @@ then
     make
     sudo make install
     cd ..
+
+    #reload the linked libraries
+    ldconfig
 fi
 
 cd freeswitch
