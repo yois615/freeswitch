@@ -40,6 +40,7 @@ then
     #build and install libks
     rm -dfr libks
     git clone https://github.com/signalwire/libks.git
+    cd libks
     git checkout v1.8.3
     cmake .
     make
