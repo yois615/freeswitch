@@ -6543,6 +6543,12 @@ char *sofia_stir_shaken_as_create_identity_header(switch_core_session_t *session
 	passport_params.origid = switch_core_session_get_uuid(session);
 
 	passport = stir_shaken_as_authenticate_to_sih(&as_context, sofia_stir_shaken_as, &passport_params, NULL);
+
+	if (!passport) {
+		stir_shaken_error_t error_code = 0;
+		switch_log_printf(SWITCH_CHANNEL_SESSION_LOG(session), SWITCH_LOG_WARNING, "libstirshaken error: %s", stir_shaken_get_error(&as_context, &error_code));
+	}
+
 	switch_safe_free(canonical_desttn);
 	switch_safe_free(canonical_origtn);
 	return passport;
