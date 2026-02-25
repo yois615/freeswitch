@@ -1134,7 +1134,8 @@ switch_status_t sofia_glue_do_invite(switch_core_session_t *session)
 
 	if ((stir_shaken_attest = switch_channel_get_variable(tech_pvt->channel, "sip_stir_shaken_attest"))) {
 		char date_buf[80] = "";
-		char *dest = caller_profile->destination_number;
+		const char *sip_stir_shaken_as_dest = switch_channel_get_variable(tech_pvt->channel, "sip_stir_shaken_as_dest");
+		const char *dest = !zstr(sip_stir_shaken_as_dest) ? sip_stir_shaken_as_dest : caller_profile->destination_number;
 		check_decode(dest, session);
 		switch_rfc822_date(date_buf, switch_micro_time_now());
 		date = switch_core_session_strdup(tech_pvt->session, date_buf);
