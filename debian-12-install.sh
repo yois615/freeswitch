@@ -112,7 +112,7 @@ sed -i modules.conf -e s:'endpoints/mod_verto:#endpoints/mod_verto:'
 
 #configure , build and install
 #env PKG_CONFIG_PATH=/usr/share/freeswitch/lib/pkgconfig ./configure --prefix=/usr/share/freeswitch --exec_prefix=/etc/freeswitch --localstatedir=/var --sysconfdir=/etc  --libdir=/var/lib --datadir=/usr/share --disable-libvpx
-./configure --enable-portable-binary --disable-dependency-tracking --prefix=/usr --localstatedir=/var --sysconfdir=/etc --with-gnu-ld --with-python --with-python3 --with-openssl
+./configure -C --enable-portable-binary --disable-dependency-tracking --prefix=/usr --localstatedir=/var --sysconfdir=/etc --with-gnu-ld --with-python --with-python3 --with-openssl --enable-core-pgsql-support
 
 make
 make install sounds-install moh-install cd-sounds-install cd-moh-install #config-vanilla
