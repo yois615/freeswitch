@@ -1262,12 +1262,6 @@ fail:
         buffer->buffer = NULL;
     }
 
-    if (printed != NULL)
-    {
-        hooks->deallocate(printed);
-        printed = NULL;
-    }
-
     return NULL;
 }
 
