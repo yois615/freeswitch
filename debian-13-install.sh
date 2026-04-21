@@ -84,7 +84,7 @@ then
     ldconfig
 fi
 
-cd freeswitch
+cd /usr/src/freeswitch
 
 ./bootstrap.sh
 
@@ -127,7 +127,7 @@ chown -R freeswitch:freeswitch /var/cache/freeswitch
 chmod -R ug=rwX,o= /usr/share/freeswitch/
 chmod -R u=rwx,g=rx /etc/freeswitch/
 
-cd freeswitch
+cd /usr/src/freeswitch
 cp debian/freeswitch-systemd.freeswitch.service /etc/systemd/system/freeswitch.service
 systemctl daemon-reload
 systemctl enable freeswitch
