@@ -51,7 +51,7 @@ then
     rm -dfr sofia-sip
     git clone https://github.com/freeswitch/sofia-sip.git
     cd sofia-sip
-    git checkout v1.13.17
+    git reset --hard 54981e14d05e60b1ee547bd4c55647b85fe35e56 
     ./bootstrap.sh
     ./configure CFLAGS=-Wno-incompatible-pointer-types
     make
