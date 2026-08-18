@@ -7,7 +7,7 @@ libsofiamod_la_SOURCES   =  mod_sofia.c sofia.c sofia_json_api.c sofia_glue.c so
 libsofiamod_la_LDFLAGS   = -static
 libsofiamod_la_CFLAGS  = $(AM_CFLAGS) -I. $(SOFIA_SIP_CFLAGS) $(STIRSHAKEN_CFLAGS)
 if HAVE_STIRSHAKEN
-libsofiamod_la_CFLAGS += -DHAVE_STIRSHAKEN
+libsofiamod_la_CFLAGS += -DHAVE_STIRSHAKEN $(KS_CFLAGS)
 endif
 
 mod_LTLIBRARIES = mod_sofia.la
