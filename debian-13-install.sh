@@ -6,7 +6,7 @@
 ##
 set -xe
 FREESWITCH_SOURCE=https://github.com/signalwire/freeswitch.git
-FREESWITCH_RELEASE=1.10.12 #or set this to any other version, for example: v1.10.5
+FREESWITCH_RELEASE=1.11.2 #or set this to any other version, for example: v1.10.5
 PREFIX=/usr/share/freeswitch
 
 #Clean old prefix and build
@@ -23,9 +23,9 @@ PVERSION=( ${FREESWITCH_RELEASE//./ } )
 MIN_VERSION=${PVERSION[1]}
 PATCH_VERSION=${PVERSION[2]}
 
-if [[ $FREESWITCH_RELEASE = "master" ]] || [[ $MIN_VERSION -ge 10  &&  $PATCH_VERSION -ge 3 ]]
+if [[ $FREESWITCH_RELEASE = "master" ]] || [[ $MIN_VERSION -ge 10 ]]
 then
-    echo "VERSION => 1.10.3 - need to build libsk2, signalwire-c , spandsp and sofia-sip separatedly"
+    echo "VERSION => 1.10.3 - need to build libsk2, signalwire-c , spandsp and sofia-sip separately"
 
     #build and install libspandev
     rm -dfr spandsp
@@ -41,7 +41,6 @@ then
     rm -dfr libks
     git clone https://github.com/signalwire/libks.git
     cd libks
-    git checkout v1.8.3
     cmake .
     make
     make install
@@ -51,7 +50,6 @@ then
     rm -dfr sofia-sip
     git clone https://github.com/freeswitch/sofia-sip.git
     cd sofia-sip
-    git reset --hard 54981e14d05e60b1ee547bd4c55647b85fe35e56 
     ./bootstrap.sh
     ./configure CFLAGS=-Wno-incompatible-pointer-types
     make
