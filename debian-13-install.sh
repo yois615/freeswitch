@@ -8,13 +8,13 @@ set -xe
 FREESWITCH_SOURCE=https://github.com/signalwire/freeswitch.git
 FREESWITCH_RELEASE=1.11.2 #or set this to any other version, for example: v1.10.5
 PREFIX=/usr/share/freeswitch
+SCRIPT_DIR=$PWD
 
 #Clean old prefix and build
 sudo rm -rf $PREFIX
 
 #install dependencies
 sudo apt-get update && sudo apt-get install -y git build-essential python-is-python3 python3-dev autoconf automake libtool libncurses-dev make cmake libjpeg-dev libmpg123-dev pkg-config zlib1g-dev sqlite3 libsqlite3-dev libspeexdsp-dev libspeex-dev libedit-dev libldns-dev liblua5.2-dev libcurl4-gnutls-dev libapr1-dev yasm libsndfile1-dev libopus-dev libtiff-dev libavformat-dev libswscale-dev libswresample-dev libpq-dev zip libmemcached-dev libshout3-dev sox libsox-fmt-mp3 sngrep libmp3lame-dev python3-setuptools libjansson-dev libpcre2-dev
-cd ../
 
 #cd back one
 cd ..
@@ -82,7 +82,7 @@ then
     ldconfig
 fi
 
-cd /usr/src/freeswitch
+cd $SCRIPT_DIR
 
 ./bootstrap.sh
 
@@ -115,6 +115,10 @@ sed -i modules.conf -e s:'endpoints/mod_verto:#endpoints/mod_verto:'
 make
 make install sounds-install moh-install cd-sounds-install cd-moh-install #config-vanilla
 
+#Install custom sound file for modern-callcenter agent mangement
+cp custom_sounds/ivr-to_place_a_call.wav /usr/share/freeswitch/sounds/en/us/callie/ivr/16000/
+sox custom_sounds/ivr-to_place_a_call.wav -b 16 -c 1 -r 8000 /usr/share/freeswitch/sounds/en/us/callie/ivr/8000/ivr-to_place_a_call.wav
+
 #create user and group
 cd /usr/share
 groupadd freeswitch
@@ -125,7 +129,7 @@ chown -R freeswitch:freeswitch /var/cache/freeswitch
 chmod -R ug=rwX,o= /usr/share/freeswitch/
 chmod -R u=rwx,g=rx /etc/freeswitch/
 
-cd /usr/src/freeswitch
+cd $SCRIPT_DIR
 cp debian/freeswitch-systemd.freeswitch.service /etc/systemd/system/freeswitch.service
 systemctl daemon-reload
 systemctl enable freeswitch
